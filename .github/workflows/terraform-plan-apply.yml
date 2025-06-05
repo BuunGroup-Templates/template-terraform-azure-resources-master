@@ -35,6 +35,8 @@ permissions:
   contents: read
   id-token: write
   pull-requests: write
+  actions: write
+  secrets: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -76,7 +78,7 @@ jobs:
       - name: Determine Environment Name
         id: determine_env
         run: |
-          ENV_NAME="${{ github.event.inputs.environment || 'production' }}"
+          ENV_NAME="${{ github.event.inputs.environment || 'main' }}"
           echo "Determined environment: $ENV_NAME"
           echo "environment_name=$ENV_NAME" >> $GITHUB_OUTPUT
           echo "secret_name=STATE_$(echo '$ENV_NAME' | tr '[:lower:]' '[:upper:]' | tr '-' '_')" >> $GITHUB_OUTPUT
