@@ -60,7 +60,7 @@ jobs:
             core.setOutput('is_master', topics.includes('template-master'));
 
   plan:
-    name: Terraform Plan (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'main' }})
+    name: Terraform Plan (${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }})
     if: |
       (github.event_name == 'workflow_dispatch') ||
       (github.event.workflow_run.conclusion == 'success' && !contains(github.event.workflow_run.head_commit.message, '[skip ci]'))
@@ -72,6 +72,68 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event.inputs.ref || github.ref }}
+
+      - name: Determine Environment Name
+        id: determine_env
+        run: |
+          ENV_NAME="${{ github.event.inputs.environment || 'production' }}"
+          echo "Determined environment: $ENV_NAME"
+          echo "environment_name=$ENV_NAME" >> $GITHUB_OUTPUT
+          echo "secret_name=STATE_$(echo '$ENV_NAME' | tr '[:lower:]' '[:upper:]' | tr '-' '_')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Check for Existing State Secret
+        id: check_state_secret
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const secretName = '${{ steps.determine_env.outputs.secret_name }}';
+            console.log(`Checking for secret: ${secretName}`);
+            
+            try {
+              await github.rest.actions.getRepoSecret({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                secret_name: secretName
+              });
+              console.log(`Secret ${secretName} exists`);
+              core.setOutput('exists', 'true');
+            } catch (error) {
+              if (error.status === 404) {
+                console.log(`Secret ${secretName} does not exist`);
+                core.setOutput('exists', 'false');
+              } else {
+                throw error;
+              }
+            }
+
+      - name: Restore State File from Secret
+        if: steps.check_state_secret.outputs.exists == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const secretName = '${{ steps.determine_env.outputs.secret_name }}';
+            
+            console.log(`Restoring state from secret: ${secretName}`);
+            
+            // The secret value is available through the secrets context
+            const encodedState = process.env[secretName];
+            
+            if (!encodedState) {
+              throw new Error(`Secret ${secretName} is not available in environment`);
+            }
+            
+            // The secret value is stored as base64, decode it
+            const stateContent = Buffer.from(encodedState, 'base64').toString('utf8');
+            
+            // Write to terraform.tfstate
+            fs.writeFileSync('terraform.tfstate', stateContent);
+            console.log('State file restored successfully');
+        env:
+          ${{ steps.determine_env.outputs.secret_name }}: ${{ secrets[steps.determine_env.outputs.secret_name] }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -89,8 +151,6 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
-        # run: terraform init -backend-config="key=path/to/state/${{ github.event.inputs.environment || 'main' }}.tfstate" ...
-
       - name: Terraform Plan
         id: plan
         working-directory: .
@@ -102,8 +162,6 @@ jobs:
           ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
-
-        # run: terraform plan -no-color -out=tfplan -var-file="config/${{ github.event.inputs.environment || 'main' }}.tfvars"
 
       # NEW: Convert binary plan to JSON format
       - name: Convert Plan to JSON
@@ -163,6 +221,68 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event.inputs.ref || github.ref }}
 
+      - name: Determine Environment Name
+        id: determine_env
+        run: |
+          ENV_NAME="${{ github.event.inputs.environment || 'main' }}"
+          echo "Determined environment: $ENV_NAME"
+          echo "environment_name=$ENV_NAME" >> $GITHUB_OUTPUT
+          echo "secret_name=STATE_$(echo '$ENV_NAME' | tr '[:lower:]' '[:upper:]' | tr '-' '_')" >> $GITHUB_OUTPUT
+        shell: bash
+
+      - name: Check for Existing State Secret
+        id: check_state_secret
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const secretName = '${{ steps.determine_env.outputs.secret_name }}';
+            console.log(`Checking for secret: ${secretName}`);
+            
+            try {
+              await github.rest.actions.getRepoSecret({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                secret_name: secretName
+              });
+              console.log(`Secret ${secretName} exists`);
+              core.setOutput('exists', 'true');
+            } catch (error) {
+              if (error.status === 404) {
+                console.log(`Secret ${secretName} does not exist`);
+                core.setOutput('exists', 'false');
+              } else {
+                throw error;
+              }
+            }
+
+      - name: Restore State File from Secret
+        if: steps.check_state_secret.outputs.exists == 'true'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const secretName = '${{ steps.determine_env.outputs.secret_name }}';
+            
+            console.log(`Restoring state from secret: ${secretName}`);
+            
+            // The secret value is available through the secrets context
+            const encodedState = process.env[secretName];
+            
+            if (!encodedState) {
+              throw new Error(`Secret ${secretName} is not available in environment`);
+            }
+            
+            // The secret value is stored as base64, decode it
+            const stateContent = Buffer.from(encodedState, 'base64').toString('utf8');
+            
+            // Write to terraform.tfstate
+            fs.writeFileSync('terraform.tfstate', stateContent);
+            console.log('State file restored successfully');
+        env:
+          ${{ steps.determine_env.outputs.secret_name }}: ${{ secrets[steps.determine_env.outputs.secret_name] }}
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -192,82 +312,62 @@ jobs:
           ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
           ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
 
-      - name: Determine Environment Name
-        id: determine_env
+      - name: Save State File to Secret
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const sodium = require('tweetsodium');
+            
+            const secretName = '${{ steps.determine_env.outputs.secret_name }}';
+            const stateFilePath = 'terraform.tfstate';
+            
+            // Check if state file exists
+            if (!fs.existsSync(stateFilePath)) {
+              console.log('No state file found to save');
+              return;
+            }
+            
+            // Read and encode the state file
+            const stateContent = fs.readFileSync(stateFilePath, 'utf8');
+            const encodedContent = Buffer.from(stateContent).toString('base64');
+            
+            // Get the repository's public key for encryption
+            const { data: publicKey } = await github.rest.actions.getRepoPublicKey({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            
+            // Encrypt the encoded content
+            const messageBytes = Buffer.from(encodedContent);
+            const keyBytes = Buffer.from(publicKey.key, 'base64');
+            const encryptedBytes = sodium.seal(messageBytes, keyBytes);
+            const encryptedValue = Buffer.from(encryptedBytes).toString('base64');
+            
+            // Create or update the secret
+            try {
+              await github.rest.actions.createOrUpdateRepoSecret({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                secret_name: secretName,
+                encrypted_value: encryptedValue,
+                key_id: publicKey.key_id,
+              });
+              console.log(`State file saved to secret: ${secretName}`);
+            } catch (error) {
+              console.error('Failed to save state file to secret:', error);
+              throw error;
+            }
+
+      - name: Create Environment File
         run: |
-          ENV_NAME="${{ github.event.inputs.environment || github.ref_name }}"
-          echo "Determined environment: $ENV_NAME"
-          echo "environment_name=$ENV_NAME" >> $GITHUB_OUTPUT
-          echo "$ENV_NAME" > environment.txt
+          echo "${{ steps.determine_env.outputs.environment_name }}" > environment.txt
         shell: bash
 
       - name: Upload Environment Artifact
         uses: actions/upload-artifact@v4
         with:
           name: environment-${{ github.run_id }}
-          path: environment.txt
-      # --- End Environment Upload ---
-
-      # --- Encrypt and Upload State File ---
-      - name: Check for State File
-        id: check_state
-        run: |
-          if [ -f "terraform.tfstate" ]; then
-            echo "State file found."
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "State file terraform.tfstate not found. Skipping encryption and upload."
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-        shell: bash
-
-      - name: Setup Node.js for Encryption
-        if: steps.check_state.outputs.exists == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Encrypt State File using Node.js script
-        if: steps.check_state.outputs.exists == 'true'
-        id: encrypt_state
-        env:
-          # Pass the PUBLIC key from secrets to the environment
-          RSA_PUBLIC_KEY_PEM: ${{ secrets.RSA_PUBLIC_KEY }}
-        run: |
-          if [ -z "$RSA_PUBLIC_KEY_PEM" ]; then
-            echo "::error::RSA_PUBLIC_KEY secret is not set. Cannot encrypt state file."
-            exit 1
-          fi
-          INPUT_FILE="terraform.tfstate"
-          OUTPUT_FILE="tfstate-encrypted-${{ github.run_id }}.enc"
-          SCRIPT_PATH="./scripts/encrypt-state.js" # Assuming script is checked into repo
-
-          if [ ! -f "$SCRIPT_PATH" ]; then
-            echo "::error::Encryption script not found at $SCRIPT_PATH"
-            exit 1
-          fi
-
-          # Make script executable (needed on some runners)
-          chmod +x "$SCRIPT_PATH"
-
-          echo "Running encryption script..."
-          # Pass public key as a single string argument, ensure quoting handles newlines
-          node "$SCRIPT_PATH" "$INPUT_FILE" "$RSA_PUBLIC_KEY_PEM" "$OUTPUT_FILE"
-
-          # Check exit code of the script
-          if [ $? -ne 0 ]; then
-            echo "::error::Node.js encryption script failed."
-            exit 1
-          fi
-
-          echo "Node.js encryption script completed successfully."
-          # Clean up original state file
-          rm "$INPUT_FILE"
-        shell: bash
-
-      - name: Upload Encrypted State Artifact
-        if: steps.check_state.outputs.exists == 'true' && steps.encrypt_state.outcome == 'success'
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfstate-encrypted-${{ github.run_id }} # Artifact name matches the file
-          path: tfstate-encrypted-${{ github.run_id }}.enc 
+          path: environment.txt 
