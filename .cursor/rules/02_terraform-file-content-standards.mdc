@@ -1,0 +1,91 @@
+---
+description: 
+globs: **/*.tf,!terraform.tfstate*,!*.tfstate.d/**
+alwaysApply: false
+---
+---
+description: Rules for content within Terraform (.tf) files, including argument usage, lifecycle, conditions, and naming.
+globs:
+  - "**/*.tf"
+  - "!terraform.tfstate*"
+  - "!*.tfstate.d/**"
+alwaysApply: true
+---
+
+### Adherence to Current Standards (for .tf files)
+
+- Only use arguments and features that are current and supported by the pinned provider version (as defined in `versions.tf` and verified against official provider documentation). 
+- Avoid deprecated arguments as identified in the official provider documentation for the pinned version.
+- Comments should be used sparingly, primarily to explain complex logic not immediately obvious from the code or to reference external decisions, not to replicate provider documentation or state the obvious.
+
+### Lifecycle Meta-Arguments
+
+Use @lifecycle when relevant:
+- prevent_destroy, ignore_changes, create_before_destroy
+
+### Custom Condition Checks
+
+Use @precondition and postcondition for resource assumptions.
+
+*Example:*
+```
+resource "aws_instance" "example" {
+  ami           = "ami-abc123"
+  instance_type = "t3.micro"
+
+  lifecycle {
+    precondition {
+      condition     = data.aws_ami.example.architecture == "x86_64"
+      error_message = "The AMI must be for x86_64 architecture."
+    }
+  }
+}
+```
+
+### Sensitive Values (in .tf files)
+
+Use @sensitive() consistently in resource arguments, locals, and outputs within `main.tf`, `locals.tf`, and `outputs.tf` where appropriate.
+
+### Recommended Terraform Functions
+
+Use:
+- format(), try(), merge(), lookup(), coalesce()
+- Full reference: @Terraform Built-in Functions
+
+### Outputs & Naming Convention (for .tf files)
+
+- Use output blocks in `outputs.tf`.
+- Apply `sensitive = true` to outputs where appropriate.
+- Use "this" for internal resource names (e.g., `resource "aws_vpc" "this" { ... }`).
+- Use `format()` for dynamic name construction for resources if names are not directly provided as variables.
+
+### Tagging Standards (for .tf files)
+
+Ensure consistent tagging across all resources defined in `.tf` files:
+
+- *Mandatory Tags*: owner, project, deployed_by, managed_by, resource_type, cost_centre, environment, last_updated
+- *Conditional Features Tag*: Include a `features` tag listing enabled features when applicable.
+- *Tag Formatting*: Use lowercase tag keys with underscores via `lower()` and `format()`.
+
+*Example:*
+```
+locals {
+  default_tags = {
+    owner         = "team-xyz"
+    project       = "my_project"
+    deployed_by   = "terraform"
+    managed_by    = "terraform"
+    resource_type = "ec2_instance"
+    cost_centre   = "cc1234"
+    environment   = "production"
+    last_updated  = timestamp()
+    features      = join(",", [for k, v in var.features : k if v])
+  }
+}
+
+resource "aws_instance" "example" {
+  ami           = "ami-abc123"
+  instance_type = "t3.micro"
+  tags          = local.default_tags
+}
+```
