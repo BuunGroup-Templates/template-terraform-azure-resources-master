@@ -32,6 +32,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Configure Git for private modules
+        run: git config --global url."https://oauth2:${{ secrets.AUTOMATION_PAT }}@github.com".insteadOf "https://github.com"
+
       ########################
       # TERRAFORM SETUP TASK #
       ########################

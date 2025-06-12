@@ -49,6 +49,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Configure Git for private modules
+        run: git config --global url."https://oauth2:${{ secrets.AUTOMATION_PAT }}@github.com".insteadOf "https://github.com"
+
       - name: Show Root Directory Structure
         run: ls -al
 
@@ -124,6 +127,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Configure Git for private modules
+        run: git config --global url."https://oauth2:${{ secrets.AUTOMATION_PAT }}@github.com".insteadOf "https://github.com"
 
       - name: Show Root Directory Structure
         run: ls -al
