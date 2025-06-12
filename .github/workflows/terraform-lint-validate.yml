@@ -73,6 +73,14 @@ jobs:
           echo "DEBUG: steps.fmt.outcome is ${{ steps.fmt.outcome }}"
           echo "DEBUG: github.event_name is ${{ github.event_name }}"
 
+      - name: Set Token for BuunGroup-IaC
+        if: github.repository_owner == 'BuunGroup-IaC'
+        run: echo "GH_TOKEN=${{ secrets.AUTOMATION_PAT }}" >> $GITHUB_ENV
+
+      - name: Set Token for Other Orgs
+        if: github.repository_owner != 'BuunGroup-IaC'
+        run: echo "GH_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+
       - name: Auto-fix and PR if needed
         if: steps.fmt.outcome == 'failure' && (github.event_name == 'pull_request' || github.event_name == 'push')
         run: |
@@ -125,7 +133,7 @@ jobs:
             echo "Skipping PR creation: Not a pull_request or push event."
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.AUTOMATION_PAT }}
+          GITHUB_TOKEN: ${{ env.GH_TOKEN }}
 
   security_scan_trivy:
     name: Security Scan (Trivy IaC)
