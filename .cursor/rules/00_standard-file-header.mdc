@@ -1,18 +1,32 @@
+---
+description: 
+globs: **/*,!/.terraform/**,!terraform.tfstate*,!*.tfstate.d/**
+alwaysApply: false
+---
+---
+description: Enforces the standard Buun Group file header on all relevant files.
+globs:
+  - "**/*"
+  - "!/.terraform/**"
+  - "!terraform.tfstate*"
+  - "!*.tfstate.d/**"
+alwaysApply: true
+---
+
+### Standard File Header
+
+All new files created within a module (including `.tf`, `.md`, `.hcl`, `.yaml`, etc.) must begin with the following header, followed by a single blank line, and then the file's content:
+
+```text
 #################################################################
 #     ____  __  ____  ___   __   __________  ____  __  ______   #
 #    / __ )/ / / / / / / | / /  / ____/ __ \/ __ \/ / / / __ \  #
-#   / __  / / / / / / /  |/ /  / / __/ /_/ / / / / / / / /_/ /  #
+#   / __  / / / / / / / /  |/ /  / / __/ /_/ / / / / / / /_/ /  #
 #  / /_/ / /_/ / /_/ / /|  /  / /_/ / _, _/ /_/ / /_/ / ____/   #
 # /_____/\____/\____/_/ |_/   \____/_/ |_|\____/\____/_/        #
-#                                                               #
 #                                                               #
 # Buun Group Pty Ltd.                                           #
 # Copyright 2025 Buun Group Pty Ltd. All rights reserved.       #
 # https://buungroup.com                                         #
-#                                                               #
 #################################################################
-
-module "example_root_module_2" {
-  source = "../../"
-  greeting_prefix = "Example Greeting 2"
-}
+```

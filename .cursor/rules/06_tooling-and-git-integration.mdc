@@ -1,0 +1,123 @@
+---
+description: 
+globs: **/.pre-commit-config.yaml
+alwaysApply: false
+---
+---
+description: Standards for defining variables in variables.tf, including the features map and type/security practices.
+globs:
+  - "**/.pre-commit-config.yaml"
+alwaysApply: true
+---
+
+### Auto-generate Git Commit Messages from CHANGELOG.md
+
+To ensure commit messages are consistent with `CHANGELOG.md` versions and summaries, include this pre-commit hook in `.pre-commit-config.yaml` at the root of the module/project:
+
+```yaml
+repos:
+  - repo: https://github.com/bkuhlmann/git-cop
+    rev: v5.1.0 # Or latest stable version
+    hooks:
+      - id: git-cop
+        name: Generate commit message from CHANGELOG.md
+        entry: |
+          bash -c '
+          version=$(grep -m1 -E "^## \[[0-9]+\.[0-9]+\.[0-9]+(\]|-[a-zA-Z0-9.-]+)\]" CHANGELOG.md | sed -E "s/^## \[([0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?)\].*/\1/")
+          summary=$(grep -A2 "^## \[$version\]" CHANGELOG.md | grep -E "^- (Added|Changed|Fixed|Removed|Deprecated|Security):" | head -n1 | sed "s/^- [a-zA-Z]+: //" | sed 's/[[:space:]]*$//')
+          if [ -z "$version" ] || [ -z "$summary" ]; then
+            echo "Could not automatically determine version/summary from CHANGELOG.md for commit message."
+            echo "Please ensure CHANGELOG.md has an entry for the latest version and at least one Added/Changed/Fixed item."
+            exit 1
+          fi
+          echo "$version: $summary" > $1
+          '
+        language: system
+        stages: [commit-msg]
+```
+
+*Note*: The script attempts to find the latest SemVer version and the first significant change summary. Ensure your `CHANGELOG.md` is up-to-date before committing.
+
+### Pre-commit Hook for terraform-docs
+
+To keep `README.md` files automatically updated with module inputs and outputs, add the following to `.pre-commit-config.yaml`:
+
+```yaml
+  - repo: https://github.com/terraform-docs/terraform-docs
+    rev: v0.17.0 # Or latest stable version
+    hooks:
+      - id: terraform-docs
+        name: Generate Terraform Docs for READMEs
+        args:
+          - "markdown"
+          - "table"
+          - "--output-file"
+          - "README.md"
+          - "--output-mode"
+          - "inject"
+          - "."
+        # Run this hook for any .tf file changes or if a README.md is directly modified.
+        # It processes the current directory for each README.md found.
+        # If you have README.md files in subdirectories (e.g., examples/default/README.md),
+        # terraform-docs needs to be run from those directories.
+        # Consider using a script or multiple hook entries if complex paths are needed.
+        # For a simple case, this targets the root README.md and assumes it's the main one.
+        # A common pattern is to have separate hooks for root and example READMEs.
+        # Example for root README:
+        # files: ^README\.md$
+        # entry: terraform-docs markdown table --output-file README.md --output-mode inject .
+        # And for examples:
+        # files: ^examples/.*/README\.md$
+        # entry: bash -c 'cd $(dirname {}) && terraform-docs markdown table --output-file README.md --output-mode inject .'
+        # For simplicity, the provided args target the current directory's README.md.
+        # This might require adjustment based on your project structure and where `terraform-docs` should run.
+        # A robust solution often involves a custom script called by the hook.
+```
+
+*Note*: Ensure `terraform-docs` is configured to correctly find your `.tf` files relative to where the hook runs (usually the root of the repository for the main `README.md`, and within each example directory for example `README.md`s).
+
+### Developer Setup Documentation (in Root README.md)
+
+The root `README.md` *must* document the developer setup for these pre-commit hooks:
+
+```markdown
+## Developer Setup
+
+This repository uses pre-commit hooks to ensure code quality, consistency, and to keep documentation in sync. 
+Please ensure you have the necessary tools installed and hooks configured before committing changes.
+
+### Prerequisites
+
+- [pre-commit](mdc:https:/pre-commit.com/#install)
+- [terraform-docs](mdc:https:/terraform-docs.io/user-guide/installation)
+- [git-cop prerequisites](mdc:https:/github.com/bkuhlmann/git-cop#installation) (if not using system bash for the entry)
+
+Install tools (example for macOS using Homebrew):
+```
+brew install pre-commit terraform-docs
+# Ensure git-cop dependencies are met if applicable
+```
+
+### Installing Hooks
+
+After cloning the repository and installing prerequisites, install the pre-commit hooks:
+
+```bash
+pre-commit install -t commit-msg -t pre-commit
+```
+
+This installs hooks for both standard pre-commit actions and for commit message generation.
+
+### Running Hooks Manually
+
+You can run all pre-commit hooks manually on all files:
+
+```bash
+pre-commit run -a
+```
+
+Or on specific files:
+
+```bash
+pre-commit run <hook_id> --file <filename>
+```
