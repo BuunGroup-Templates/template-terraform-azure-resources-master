@@ -21,7 +21,7 @@ variable "greeting_prefix" {
     condition     = length(var.greeting_prefix) > 0
     error_message = "The greeting_prefix must not be empty."
   }
-} 
+}
 
 variable "location" {
   description = "The Azure region where the resources will be created."
