@@ -125,7 +125,7 @@ jobs:
             echo "Skipping PR creation: Not a pull_request or push event."
           fi
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.AUTOMATION_PAT }}
 
   security_scan_trivy:
     name: Security Scan (Trivy IaC)
