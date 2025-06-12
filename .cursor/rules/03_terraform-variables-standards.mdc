@@ -1,0 +1,81 @@
+---
+description: 
+globs: **/variables.tf
+alwaysApply: false
+---
+---
+description: Standards for defining variables in variables.tf, including the features map and type/security practices.
+globs:
+  - "**/variables.tf"
+alwaysApply: true
+---
+
+### Feature Flags Variable (`var.features`)
+
+A `features` variable *must* always be defined in `variables.tf` as follows. It is used to control optional module behaviors and dynamically enable/disable groups of arguments.
+
+```
+variable "features" {
+  description = "Feature flags to enable or disable optional module behaviors and arguments. When adding new flags, refer to 'Required File Structure' (in 01_module-principles-and-structure.mdc) for example creation guidelines and 'Secure & Typed Variables' (this file) for input variable definitions."
+  type        = map(bool)
+  default     = {} # New feature flags should be added here, typically defaulted to false.
+}
+```
+
+Use this to control optional arguments dynamically in other `.tf` files (e.g., `main.tf`):
+```
+count = var.features["enable_subnet"] ? 1 : 0
+```
+
+### Secure & Typed Variables (in `variables.tf`)
+
+Avoid:
+- `type = any`
+- Loose types or open-ended maps without explicit structure definitions (use object types for structured maps).
+
+Use:
+- For top-level input variables, achieve optionality by providing a `default` value (e.g., `default = null`, `default = []`, `default = {}`). If no `default` is set, the variable is considered required.
+  - When new conditional feature flags are added to the `var.features` map, ensure corresponding input variables controlled by these flags have appropriate `default` values to make them optional and include relevant validation rules.
+- When defining complex types like objects, use the `optional(type, default_value)` modifier for *attributes within that object type* to make those attributes optional.
+- Set `default = null`, `default = []`, or `default = {}` when appropriate for top-level variables to make them optional.
+- Set `sensitive = true` for variables containing sensitive information.
+- Employ validation blocks with functions like `regex()`, `format()`, `can()`, `length()`, `substr()`, etc., to enforce constraints on variable values.
+
+**Always use the full argument reference from the Terraform Registry for the main resource block when determining variable names and types (if a variable directly maps to a resource argument).** These resource arguments should be made optional in the module (via `var.features` or by having `default` values for their corresponding variables).
+
+**Example (Top-level optional variable):**
+```
+variable "tags" {
+  description = "A map of tags to assign to the resource."
+  type        = map(string)
+  default     = {} # This makes the 'tags' variable optional
+}
+```
+
+**Example (Optional attribute within an object type):**
+```
+variable "network_configuration" {
+  description = "Network configuration settings."
+  type = object({
+    address_space       = string
+    dns_servers         = optional(list(string), []) # 'dns_servers' is an optional attribute
+    enable_ddos_protection = optional(bool, false)   # 'enable_ddos_protection' is an optional attribute
+  })
+  default = null # This makes the entire 'network_configuration' variable optional 
+                 # (if null is an acceptable state for the module when this isn't provided).
+                 # Alternatively, provide a default object with default attribute values.
+}
+```
+
+**Example (Variable with validation):**
+```
+variable "instance_size" {
+  description = "The size of the instance to create."
+  type        = string
+  default     = "Standard_DS1_v2"
+  validation {
+    condition     = contains(["Standard_DS1_v2", "Standard_DS2_v2", "Standard_F2s_v2"], var.instance_size)
+    error_message = "Invalid instance size. Must be one of Standard_DS1_v2, Standard_DS2_v2, or Standard_F2s_v2."
+  }
+}
+```

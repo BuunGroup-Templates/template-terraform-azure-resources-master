@@ -1,0 +1,63 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+---
+description: Assists, the AI agent on validaiton workflow and development.
+globs:
+  - "**/*"
+alwaysApply: true
+---
+
+### AI-Assisted Development & Validation Workflow
+
+When an AI assistant is used for Terraform module development or modification, it *must* adhere to the following workflow. This ensures consistency, adherence to standards, and proper tracking of changes.
+
+1.  **Log Task Initiation in `TRACK.md`**:
+    *   The AI *must* log the initiation of its current set of operations in `TRACK.md` (creating the file if it doesn't exist per `05_documentation-and-tracking-standards.mdc`).
+    *   The log entry should include a timestamp and a brief description of the goal or requested changes.
+
+2.  **Navigate to Target Directory**:
+    *   Change to the relevant directory for the task (e.g., an `examples/` subdirectory for example generation, or the module root for broader changes).
+
+3.  **Define/Update Feature Flags in `variables.tf` (if applicable)**:
+    *   If the AI's task involves implementing a new optional module behavior controlled by a feature flag (e.g., creating `examples/<new_feature_name>/` or adding input variables conditional on a new feature):
+        a.  The AI *must* first read `variables.tf` to inspect the `default` map of the `variable "features"` (as defined in `03_terraform-variables-standards.mdc`).
+        b.  If the new feature flag is not present as a key in the `default` map, the AI *must* propose an update to the `variable "features"` block in `variables.tf`. This update should add the new feature flag as a key, typically with a boolean value of `false` (to ensure new features are off by default).
+        c.  This proposed change to `variables.tf` (or the confirmation that the flag already exists) *must* be logged in `TRACK.md`.
+
+4.  **Initialize Terraform**:
+    *   Run `terraform init -backend=false`.
+    *   Address any initialization errors before proceeding. Significant errors or recovery steps *must* be logged in `TRACK.md`.
+
+5.  **Verify Resource Arguments**:
+    *   Before planning or after making corrections, all resource arguments used, modified, or introduced by the AI *must* be strictly cross-referenced with the official Terraform Registry documentation for the pinned provider version (as defined in `versions.tf` and per `04_terraform-versioning-standards.mdc`).
+    *   No arguments should be assumed, invented, or used if not confirmed by the official documentation for the specified version.
+    *   This verification *must* also ensure that no deprecated arguments (as indicated in the official documentation for the pinned version) are used, adhering to `02_terraform-file-content-standards.mdc`.
+    *   Log this verification step and any findings (like deprecated arguments identified and avoided) in `TRACK.md`.
+
+6.  **Generate Plan**:
+    *   If initialization is successful and arguments are verified, run `terraform plan`.
+    *   Log the attempt to plan (and its outcome, e.g., success, failure with errors) in `TRACK.md`.
+
+7.  **Error Analysis & Correction**:
+    *   Analyze any errors reported by `terraform plan`.
+    *   The AI agent *must* attempt to automatically correct these errors based on the error messages and all relevant standards defined in these `.cursor/rules/` files.
+    *   Each significant correction attempt, the reasoning, and its outcome *must* be logged in `TRACK.md`.
+
+8.  **Iterate if Necessary**:
+    *   If errors persist after an initial correction attempt, the AI agent may re-run `plan` and attempt further corrections, logging each iteration (plan attempt, errors, correction attempt) in `TRACK.md`.
+    *   If errors cannot be resolved after 2-3 distinct correction strategies, the remaining issues and the attempted fixes should be clearly communicated to the human developer and noted conclusively in `TRACK.md`.
+
+9.  **Summarize Actions in `TRACK.md`**:
+    *   Before proposing `CHANGELOG.md` updates, the AI *must* log a consolidated summary of significant actions, analyses, and corrections performed during the preceding steps in `TRACK.md` with timestamps.
+
+10. **Update `CHANGELOG.md`**:
+    *   After successful validation and correction of Terraform configurations, if the changes made by the AI constitute a new feature, a breaking change, a bug fix, or a significant structural modification, the AI *must* prepare and propose an update to the `CHANGELOG.md` file.
+    *   This update must accurately describe the changes and follow the format specified in `05_documentation-and-tracking-standards.mdc`, including determining the appropriate semantic version bump if applicable.
+    *   The AI should propose this as an edit to the `CHANGELOG.md` file.
+
+11. **Adherence to Standards & Final `TRACK.md` Log**:
+    *   All auto-corrections, file creations (e.g., new example directories, `README.md` files), and `CHANGELOG.md` proposals *must* comply with all rules outlined in the `.cursor/rules/` directory (e.g., file headers, variable typing, naming conventions, documentation structure).
+    *   The AI should add a final entry to `TRACK.md` upon completion of its assigned tasks or when handing off to the user, summarizing the final state.
