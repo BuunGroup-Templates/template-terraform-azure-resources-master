@@ -22,3 +22,9 @@ variable "greeting_prefix" {
     error_message = "The greeting_prefix must not be empty."
   }
 } 
+
+variable "location" {
+  description = "The Azure region where the resources will be created."
+  type        = string
+  default     = "australiaeast"
+}
