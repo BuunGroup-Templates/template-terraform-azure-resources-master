@@ -1,0 +1,36 @@
+---
+description: 
+globs: **/*.tf,**/README.md,**/CHANGELOG.md,**/TRACK.md
+alwaysApply: false
+---
+---
+description: Defines core Terraform module architecture principles and the required file/directory structure.
+globs:
+  - "**/*.tf"
+  - "**/README.md"
+  - "**/CHANGELOG.md"
+  - "**/TRACK.md"
+alwaysApply: true
+---
+
+### Module Architecture Principles
+
+- *Single Responsibility*: A module must do one thing and do it well.
+- *DRY Principle*: Avoid repeating logic. Use for_each with dynamic blocks for repeated nested content.
+  - Do *not* use for_each at the top-level resource; use it at the module level instead.
+- *Composable*: Modules should expose clear inputs/outputs to work seamlessly with other modules.
+- *Reusable*: Designed for multi-environment use with minimal change; all variation occurs via examples/ inputs.
+- *Dynamic Input Support*: Support all configurable arguments provided by the latest version of the resource, using a `features` map and conditional logic.
+
+### Required File Structure
+
+Each module *must include*:
+
+- main.tf, variables.tf, locals.tf, outputs.tf, providers.tf, data.tf
+- examples/default/main.tf – uses the module with realistic inputs, demonstrating all available features enabled.
+- examples/basic/main.tf – uses the module with only the required "Argument References" (as defined in the Terraform Registry for the module's primary resource(s)) and no optional features enabled. The developer is responsible for identifying and including all such base arguments from the Terraform Registry for the specific main resource(s) the module provisions.
+- examples/<feature_name>/main.tf – for each significant optional feature flag defined in `var.features` (e.g., "manage_subnets_inline"), an example folder *must* be created. This example demonstrates the module with that specific feature enabled, alongside all other required inputs for the module to function.
+- tests/unit_tests/defaults.tftest.hcl – validates plan
+- tests/integration_tests/defaults.tftest.hcl – validates apply
+- docs/naming-convention.md – documents naming standards
+- README.md – top-level + one inside every examples/*/ folder describing purpose, usage, inputs/outputs
