@@ -13,5 +13,6 @@
 #################################################################
 
 locals {
-  # This is a local variable that is used to store configuration
+    # This is a local variable that is used to store configuration
+    location_short_code = module.management_utils.region_short_names_map[var.location]
 }
