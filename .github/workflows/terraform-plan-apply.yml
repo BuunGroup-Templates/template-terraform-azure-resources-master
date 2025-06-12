@@ -73,6 +73,9 @@ jobs:
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event.inputs.ref || github.ref }}
 
+      - name: Configure Git for private modules
+        run: git config --global url."https://oauth2:${{ secrets.AUTOMATION_PAT }}@github.com".insteadOf "https://github.com"
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -162,6 +165,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.event.inputs.ref || github.ref }}
+
+      - name: Configure Git for private modules
+        run: git config --global url."https://oauth2:${{ secrets.AUTOMATION_PAT }}@github.com".insteadOf "https://github.com"
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
